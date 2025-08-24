@@ -6,6 +6,10 @@ import quantstats
 import backtrader as bt
 import matplotlib.pyplot as plt
 import pandas_market_calendars as mcal
+import warnings
+
+# Suppress FutureWarnings for cleaner output
+warnings.filterwarnings('ignore', category=FutureWarning)
 
 # --- Data Loading ---
 
@@ -113,7 +117,7 @@ def get_benchmark(symbol, start_dt, end_dt, data_dir="./data"):
         print(f"Loaded benchmark data from {file_path}")
     except FileNotFoundError:
         print(f"Benchmark file not found at {file_path}, downloading from yfinance...")
-        df = yf.download(symbol, period='max', auto_adjust=False, multi_level_index=False)
+        df = yf.download(symbol, period='max', auto_adjust=False)
         df.to_csv(file_path)
     
     # Ensure start_dt and end_dt are timezone-aware
@@ -193,6 +197,53 @@ def get_benchmark(symbol, start_dt, end_dt, data_dir="./data"):
         returns.index = returns.index.tz_localize('UTC')
     
     return returns
+
+def load_es_futures_from_db(db_path, start_dt, end_dt):
+    """
+    Load ES futures data from SQLite database
+    
+    Args:
+        db_path: Path to the SQLite database file
+        start_dt: Start datetime
+        end_dt: End datetime
+    
+    Returns:
+        DataFrame with ES futures OHLCV data
+    """
+    import sqlite3
+    
+    try:
+        conn = sqlite3.connect(db_path)
+        
+        # Query to get ES futures data within date range
+        # Using the actual database schema: futures_prices table with contract_id = 1 (ES)
+        query = """
+        SELECT datetime, open, high, low, close, volume
+        FROM futures_prices 
+        WHERE contract_id = 1 AND datetime BETWEEN ? AND ?
+        ORDER BY datetime
+        """
+        
+        df = pd.read_sql_query(query, conn, params=[start_dt, end_dt])
+        conn.close()
+        
+        if len(df) == 0:
+            print("No data found for the specified date range")
+            return None
+        
+        # Convert datetime column
+        df['datetime'] = pd.to_datetime(df['datetime'])
+        df.set_index('datetime', inplace=True)
+        
+        # Ensure proper column names for backtrader
+        df.columns = ['open', 'high', 'low', 'close', 'volume']
+        
+        print(f"Loaded {len(df)} ES futures bars from database")
+        return df
+        
+    except Exception as e:
+        print(f"Error loading ES futures data: {e}")
+        return None
 
 # --- Analysis & Reporting ---
 

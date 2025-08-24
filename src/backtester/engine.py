@@ -2,6 +2,7 @@ import backtrader as bt
 import pandas as pd
 import os
 import numpy as np
+import warnings
 from . import utils
 from .analysis import metrics
 import quantstats as qs
@@ -11,6 +12,9 @@ import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 import seaborn as sns
+
+# Suppress FutureWarnings for cleaner output
+warnings.filterwarnings('ignore', category=FutureWarning)
 
 def run_backtest(strategy_class, symbols, start_date, end_date, starting_cash, data_dir, results_dir, benchmark, strategy_params=None):
     """
@@ -62,7 +66,7 @@ def run_backtest(strategy_class, symbols, start_date, end_date, starting_cash, d
     # Configure broker with realistic transaction costs
     cerebro.broker.setcash(starting_cash)
     cerebro.broker.setcommission(commission=0.001)  # 0.1% commission
-    cerebro.broker.set_slippage_perc(0.0005)       # 0.05% slippage
+    cerebro.broker.set_slippage_perc(0.0)          # 0% slippage for preliminary testing
     
     # Add custom observer to track all orders and trades
     class OrderObserver(bt.observer.Observer):
